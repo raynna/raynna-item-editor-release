@@ -1,8 +1,11 @@
 {
   "appName": "Raynna Item Editor",
-  "manifestUrl": "https://raw.githubusercontent.com/raynna/raynna-item-editor-release/main/manifest.json",
-  "installRoot": ".launcher",
-  "stateFile": "state.json",
-  "packageRoot": "current",
-  "requestTimeoutSeconds": 90
+  "updates": {
+    "manifestUrl": "https://raw.githubusercontent.com/raynna/raynna-item-editor-release/main/manifest.json",
+    "requestTimeoutSeconds": 60
+  },
+  "java": {
+    "preferredMajorVersion": 21,
+    "downloadUrl": "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse"
+  }
 }
