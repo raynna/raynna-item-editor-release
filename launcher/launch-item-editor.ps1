@@ -11,11 +11,28 @@ $script:CurrentState = $null
 $script:PackageDir = $null
 
 function Read-JsonFile {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [switch]$IgnoreInvalidJson
+    )
     if (-not (Test-Path -LiteralPath $Path)) {
         return $null
     }
-    return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+
+    $content = Get-Content -LiteralPath $Path -Raw
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        return $null
+    }
+
+    try {
+        return ($content | ConvertFrom-Json)
+    }
+    catch {
+        if ($IgnoreInvalidJson) {
+            return $null
+        }
+        throw
+    }
 }
 
 function Get-JsonFromUrl {
@@ -195,7 +212,7 @@ $packageDir = Join-Path $dataDir $packageRootName
 $script:PackageDir = $packageDir
 $script:StatePath = Join-Path $dataDir $stateFileName
 $script:LaunchScriptPath = Join-Path $packageDir "run-item-editor.bat"
-$script:CurrentState = Read-JsonFile -Path $script:StatePath
+$script:CurrentState = Read-JsonFile -Path $script:StatePath -IgnoreInvalidJson
 if ($null -eq $script:CurrentState) {
     $script:CurrentState = [pscustomobject]@{
         installedVersion = ""
