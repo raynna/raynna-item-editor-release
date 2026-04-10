@@ -8,6 +8,7 @@ $script:ConfigPath = Join-Path $PSScriptRoot "launcher-config.json"
 $script:StatePath = $null
 $script:LaunchScriptPath = $null
 $script:CurrentState = $null
+$script:PackageDir = $null
 
 function Read-JsonFile {
     param([string]$Path)
@@ -107,6 +108,32 @@ function Install-Package {
     }
 }
 
+function Resolve-JavaHomeForPackage {
+    param([string]$PackageDir)
+
+    $bootstrapScript = Join-Path $PackageDir "ensure-java.ps1"
+    if (-not (Test-Path -LiteralPath $bootstrapScript)) {
+        throw "Missing Java bootstrap script: $bootstrapScript"
+    }
+
+    $javaHome = (& powershell -NoProfile -ExecutionPolicy Bypass -File $bootstrapScript -AppRoot $PackageDir -RequiredMajor 21)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to resolve Java for the editor package."
+    }
+
+    $resolvedJavaHome = [string]($javaHome | Select-Object -Last 1)
+    if ([string]::IsNullOrWhiteSpace($resolvedJavaHome)) {
+        throw "Java bootstrap did not return a valid JAVA_HOME."
+    }
+
+    $javaExe = Join-Path $resolvedJavaHome "bin\java.exe"
+    if (-not (Test-Path -LiteralPath $javaExe)) {
+        throw "Java bootstrap completed, but java.exe was not found at $javaExe"
+    }
+
+    return $resolvedJavaHome
+}
+
 if (-not (Test-Path -LiteralPath $script:ConfigPath)) {
     throw "Launcher config not found: $script:ConfigPath"
 }
@@ -125,6 +152,7 @@ $timeoutSeconds = [int]$config.requestTimeoutSeconds
 
 $dataDir = Join-Path $PSScriptRoot $installRootName
 $packageDir = Join-Path $dataDir $packageRootName
+$script:PackageDir = $packageDir
 $script:StatePath = Join-Path $dataDir $stateFileName
 $script:LaunchScriptPath = Join-Path $packageDir "run-item-editor.bat"
 $script:CurrentState = Read-JsonFile -Path $script:StatePath
@@ -218,8 +246,18 @@ $launchButton.Add_Click({
             throw "Installed launch script was not found: $script:LaunchScriptPath"
         }
 
+        Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Checking Java..." -ProgressValue 92
+        $javaHome = Resolve-JavaHomeForPackage -PackageDir $script:PackageDir
+
         Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Starting editor..." -ProgressValue 100
-        Start-Process -FilePath $script:LaunchScriptPath -WorkingDirectory (Split-Path -Parent $script:LaunchScriptPath)
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = "cmd.exe"
+        $startInfo.Arguments = "/c `"$script:LaunchScriptPath`""
+        $startInfo.WorkingDirectory = Split-Path -Parent $script:LaunchScriptPath
+        $startInfo.UseShellExecute = $false
+        $startInfo.EnvironmentVariables["JAVA_HOME"] = $javaHome
+        $startInfo.EnvironmentVariables["PATH"] = (Join-Path $javaHome "bin") + ";" + $startInfo.EnvironmentVariables["PATH"]
+        [System.Diagnostics.Process]::Start($startInfo) | Out-Null
         $form.Close()
     }
     catch {
