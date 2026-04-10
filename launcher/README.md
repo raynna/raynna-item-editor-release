@@ -1,6 +1,6 @@
 # Raynna Item Editor Launcher
 
-This launcher is a compact Windows EXE in the same visual style as the Avalon launcher.
+This launcher is a compact Windows-native launcher with no extra install requirement.
 
 It:
 - checks `manifest.json` from the release repo
@@ -26,5 +26,5 @@ launcher/build-launcher.bat
 Output:
 
 ```text
-launcher/dist/ItemEditorLauncher.exe
+launcher/dist/launch-item-editor.bat
 ```
