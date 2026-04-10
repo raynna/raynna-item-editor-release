@@ -18,6 +18,20 @@ function Read-JsonFile {
     return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
+function Get-JsonFromUrl {
+    param(
+        [string]$Url,
+        [int]$TimeoutSeconds
+    )
+
+    $response = Invoke-WebRequest -Uri $Url -TimeoutSec $TimeoutSeconds
+    if ($null -eq $response -or [string]::IsNullOrWhiteSpace([string]$response.Content)) {
+        throw "Manifest download returned an empty response."
+    }
+
+    return ([string]$response.Content | ConvertFrom-Json)
+}
+
 function Get-JsonValue {
     param(
         [object]$Object,
@@ -248,7 +262,7 @@ $launchButton.Add_Click({
         }
 
         Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Fetching manifest..." -ProgressValue 8
-        $manifest = Invoke-RestMethod -Uri $manifestUrl -TimeoutSec $timeoutSeconds
+        $manifest = Get-JsonFromUrl -Url $manifestUrl -TimeoutSeconds $timeoutSeconds
         $manifestVersion = [string](Get-JsonValue -Object $manifest -Name "version")
         $manifestZipUrl = [string](Get-JsonValue -Object $manifest -Name "zipUrl")
         $manifestZipSha256 = [string](Get-JsonValue -Object $manifest -Name "zipSha256")
