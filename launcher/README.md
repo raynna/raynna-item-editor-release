@@ -9,6 +9,9 @@ It:
 - extracts it locally
 - starts the packaged `run-item-editor.bat`
 
+Players only need `launch-item-editor.bat`.
+That batch file downloads the current launcher script/config automatically, then handles the rest.
+
 ## Build
 
 From `launcher/`:
