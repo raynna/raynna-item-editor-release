@@ -1,0 +1,8 @@
+{
+  "appName": "Raynna Item Editor",
+  "manifestUrl": "https://raw.githubusercontent.com/raynna/raynna-item-editor-release/main/manifest.json",
+  "installRoot": ".launcher",
+  "stateFile": "state.json",
+  "packageRoot": "current",
+  "requestTimeoutSeconds": 90
+}
