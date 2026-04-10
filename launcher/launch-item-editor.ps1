@@ -18,6 +18,28 @@ function Read-JsonFile {
     return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
+function Get-JsonValue {
+    param(
+        [object]$Object,
+        [string]$Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        return $Object[$Name]
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
 function Write-JsonFile {
     param(
         [string]$Path,
@@ -65,7 +87,7 @@ function Install-Package {
     param(
         [string]$DataDir,
         [string]$PackageDir,
-        [pscustomobject]$Manifest,
+        [object]$Manifest,
         [int]$TimeoutSeconds
     )
 
@@ -79,12 +101,16 @@ function Install-Package {
     New-Item -ItemType Directory -Path $extractPath | Out-Null
 
     try {
-        Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Downloading $($Manifest.version)..." -ProgressValue 25
-        Invoke-WebRequest -Uri $Manifest.zipUrl -OutFile $zipPath -TimeoutSec $TimeoutSeconds
+        $manifestVersion = [string](Get-JsonValue -Object $Manifest -Name "version")
+        $manifestZipUrl = [string](Get-JsonValue -Object $Manifest -Name "zipUrl")
+        $manifestZipSha256 = [string](Get-JsonValue -Object $Manifest -Name "zipSha256")
+
+        Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Downloading $manifestVersion..." -ProgressValue 25
+        Invoke-WebRequest -Uri $manifestZipUrl -OutFile $zipPath -TimeoutSec $TimeoutSeconds
 
         Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Verifying package..." -ProgressValue 55
         $downloadHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        $expectedHash = ([string]$Manifest.zipSha256).ToLowerInvariant()
+        $expectedHash = $manifestZipSha256.ToLowerInvariant()
         if ($downloadHash -ne $expectedHash) {
             throw "Downloaded zip hash mismatch. Expected $expectedHash but got $downloadHash."
         }
@@ -193,7 +219,8 @@ $launchButton.SetBounds(20, 72, 320, 68)
 $form.Controls.Add($launchButton)
 
 $script:VersionLabel = New-Object System.Windows.Forms.Label
-$script:VersionLabel.Text = "Installed version: " + ($(if ([string]::IsNullOrWhiteSpace([string]$script:CurrentState.installedVersion)) { "none" } else { [string]$script:CurrentState.installedVersion }))
+$currentInstalledVersion = [string](Get-JsonValue -Object $script:CurrentState -Name "installedVersion")
+$script:VersionLabel.Text = "Installed version: " + ($(if ([string]::IsNullOrWhiteSpace($currentInstalledVersion)) { "none" } else { $currentInstalledVersion }))
 $script:VersionLabel.ForeColor = [System.Drawing.Color]::FromArgb(191, 201, 215)
 $script:VersionLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
 $script:VersionLabel.SetBounds(20, 148, 320, 20)
@@ -222,25 +249,29 @@ $launchButton.Add_Click({
 
         Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Fetching manifest..." -ProgressValue 8
         $manifest = Invoke-RestMethod -Uri $manifestUrl -TimeoutSec $timeoutSeconds
+        $manifestVersion = [string](Get-JsonValue -Object $manifest -Name "version")
+        $manifestZipUrl = [string](Get-JsonValue -Object $manifest -Name "zipUrl")
+        $manifestZipSha256 = [string](Get-JsonValue -Object $manifest -Name "zipSha256")
 
-        if ([string]::IsNullOrWhiteSpace([string]$manifest.version) -or [string]::IsNullOrWhiteSpace([string]$manifest.zipUrl) -or [string]::IsNullOrWhiteSpace([string]$manifest.zipSha256)) {
+        if ([string]::IsNullOrWhiteSpace($manifestVersion) -or [string]::IsNullOrWhiteSpace($manifestZipUrl) -or [string]::IsNullOrWhiteSpace($manifestZipSha256)) {
             throw "Manifest is missing version, zipUrl, or zipSha256."
         }
 
+        $currentInstalledVersion = [string](Get-JsonValue -Object $script:CurrentState -Name "installedVersion")
         $needsUpdate = (-not (Test-Path -LiteralPath $script:LaunchScriptPath)) -or `
-            [string]::IsNullOrWhiteSpace([string]$script:CurrentState.installedVersion) -or `
-            ((Get-VersionObject ([string]$manifest.version)) -gt (Get-VersionObject ([string]$script:CurrentState.installedVersion)))
+            [string]::IsNullOrWhiteSpace($currentInstalledVersion) -or `
+            ((Get-VersionObject $manifestVersion) -gt (Get-VersionObject $currentInstalledVersion))
 
         if ($needsUpdate) {
             Install-Package -DataDir $dataDir -PackageDir $packageDir -Manifest $manifest -TimeoutSeconds $timeoutSeconds
-            $script:CurrentState.installedVersion = [string]$manifest.version
+            $script:CurrentState.installedVersion = $manifestVersion
             $script:CurrentState.installedAtUtc = [DateTime]::UtcNow.ToString("o")
             Write-JsonFile -Path $script:StatePath -Value $script:CurrentState
         } else {
             Update-LauncherUi -VersionText $script:VersionLabel.Text -StatusText "Latest version already installed." -ProgressValue 85
         }
 
-        $script:VersionLabel.Text = "Installed version: " + [string]$script:CurrentState.installedVersion
+        $script:VersionLabel.Text = "Installed version: " + [string](Get-JsonValue -Object $script:CurrentState -Name "installedVersion")
 
         if (-not (Test-Path -LiteralPath $script:LaunchScriptPath)) {
             throw "Installed launch script was not found: $script:LaunchScriptPath"
