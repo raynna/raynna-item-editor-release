@@ -9,6 +9,7 @@ It:
 - verifies SHA-256
 - extracts it locally
 - launches the editor
+- runs standalone from `ItemEditorLauncher.exe`; `launcher-config.json` is optional
 
 Build with:
 
@@ -16,8 +17,14 @@ Build with:
 launcher/build-launcher.bat
 ```
 
-Output:
+Primary output:
 
 ```text
 launcher/dist/ItemEditorLauncher.exe
+```
+
+Fallback output if `dist` is locked:
+
+```text
+launcher/dist-build/ItemEditorLauncher.exe
 ```
