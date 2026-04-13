@@ -1,6 +1,6 @@
 ﻿{
-    "version":  "1.0.10",
-    "zipUrl":  "https://raw.githubusercontent.com/raynna/raynna-item-editor-release/main/releases/raynna-item-editor-1.0.10-windows.zip",
-    "zipSha256":  "347dad65c534b7e32f935b74dc4ef5e621c433bd49b3d9465acc2687bdf0d9db",
-    "notes":  "Published on 2026-04-11 19:18:44"
+    "version":  "1.0.11",
+    "zipUrl":  "https://raw.githubusercontent.com/raynna/raynna-item-editor-release/main/releases/raynna-item-editor-1.0.11-windows.zip",
+    "zipSha256":  "b7cd3c81a65867cc01673a7ac90002100065d240ede9def7c11093d93d668359",
+    "notes":  "Published on 2026-04-14 01:28:04"
 }
